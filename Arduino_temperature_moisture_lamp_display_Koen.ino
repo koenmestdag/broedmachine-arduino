@@ -1,3 +1,4 @@
+
 /*
   Arduino egg hatcher
 
@@ -36,8 +37,16 @@ LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 dht DHT;
 #define DHT11_PIN 7
 
+// set up servo
+#include <Servo.h>
+Servo myServo;
+int const potPin = A1;
+int potVal;
+int angle;
+
 // variable to know when to tilt!
-int timepassed = 0;
+int startTime = 0;
+int elapsedTime = 0;
 
 void setup() {
   // open a serial connection to display values on computer
@@ -64,8 +73,12 @@ void setup() {
     temps[i] = averagetemp;
   }
 
+  // setup servo
+  myServo.attach(9);
+  
   // var to keep track of tilting
-  timepassed = 0;
+  startTime = millis();
+  elapsedTime = 0;
 
   // start with clear messages on the LCD
   Serial.print("STARTING WITH TARGET T = ");
@@ -111,13 +124,6 @@ void loop() {
   Serial.print(temperature);
   Serial.println("]");
 
-  // turn the eggs every 8 hour! = 3600s * 8
-  if(++timepassed >= 100) {
-    timepassed = 0;
-    // TODO: TURN MOTOR!!
-    Serial.println("EGGS WERE TURNED!");
-  }
-
   // DISPLAY
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -155,13 +161,32 @@ void loop() {
         // keep lamp on or off, temp is OK
     }
   }
-
-//  chk = DHT.read11(DHT11_PIN);
-//  Serial.print("Temperature2 = ");
-//  Serial.println(DHT.temperature);
-//  Serial.print("Humidity2 = ");
-//  Serial.println(DHT.humidity);
+  // delay to give temp and moist time to read
   delay(1000);
+
+  // turn the eggs every 8 hour! = 3600s * 8
+  // calculate the time sinds last check
+  elapsedTime = millis() - startTime;
+  if(elapsedTime >= 10000) {
+    startTime = millis();
+    //// read the value of the potentio switch
+    //potVal = analogRead(potPin);
+    //// change the 1023 bits to 360 degrees
+    //angle = map(potVal, 0, 1023, 0, 179);
+    if (angle == 0) {
+      angle = 150;
+    } else {
+      angle = 30;
+    };
+    // change the servo motor to the position of the potentio switch
+    myServo.write(angle);
+    Serial.print("EGGS WERE TURNED TO ANGLE ");
+    Serial.print(angle);
+    Serial.print(" at ");
+    Serial.print((millis() / 1000));
+    Serial.println("s");
+  }
+
 
 
   // wait for x * 1000ms so that the lamps do not keep going on and off
