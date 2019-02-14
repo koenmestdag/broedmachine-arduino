@@ -12,29 +12,29 @@ Built with the Arduino Starter kit!
 Display
 -------
 Connect
-  Display 16 > GND
-  Display 15 > resistor 220 Ohm > +5V
-  Display pin 14, 13, 12, 11 > Arduino Digital 3, 4, 5, 6
-  Display 6  > Arduino pin 11
-  Display 5  > GND
-  Display 4  > Arduino pin 12
-  Display 3  > Potentiometer
-  Display 2  > +5V
-  Display 1  > GND
+  + Display 16 > GND
+  + Display 15 > resistor 220 Ohm > +5V
+  + Display pin 14, 13, 12, 11 > Arduino Digital 3, 4, 5, 6
+  + Display 6  > Arduino pin 11
+  + Display 5  > GND
+  + Display 4  > Arduino pin 12
+  + Display 3  > Potentiometer
+  + Display 2  > +5V
+  + Display 1  > GND
 
 Servo motor
 -----------
 Connect
-  Motor Black wire > +5V (breadboard 18)
-  Motor Red wire   > GND (breadboard 17)
-  Motor White wire > Arduino Digital 9 (breadboard 16)
+  + Motor Black wire > +5V (breadboard 18)
+  + Motor Red wire   > GND (breadboard 17)
+  + Motor White wire > Arduino Digital 9 (breadboard 16)
 
 Velleman VMA311 (DHT11) Temp & Humidity (breadboard 28, 29, 30)
 ---------------------------------------
 Connect
   + S > Digital 7 (breadboard 28)
-  + + > +5V       (breadboard 29)
-  + - > GND       (breadboard 30)
+  + /+ > +5V       (breadboard 29)
+  + /- > GND       (breadboard 30)
 
 Velleman 4 channel relay module VMA400
 ---------------------------------------
