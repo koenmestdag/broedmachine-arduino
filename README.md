@@ -32,9 +32,9 @@ Connect
 Velleman VMA311 (DHT11) Temp & Humidity (breadboard 28, 29, 30)
 ---------------------------------------
 Connect
-  S > Digital 7 (breadboard 28)
-  + > +5V       (breadboard 29)
-  - > GND       (breadboard 30)
+  + S > Digital 7 (breadboard 28)
+  + + > +5V       (breadboard 29)
+  + - > GND       (breadboard 30)
 
 Velleman 4 channel relay module VMA400
 ---------------------------------------
