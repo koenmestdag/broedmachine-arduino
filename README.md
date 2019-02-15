@@ -41,3 +41,7 @@ Velleman 4 channel relay module VMA400
 Soldeer drie draden aan de relais op VCC, GND en IN1, verbind respectievelijk met VCC (+), GND (-) en digitale poort 2 van de Arduino (breaboard 25).
 
 Knip 1 draad van de 220V voeding naar de lamp door en bevestig de uiteinden aan de normal closed poorten van relais 1. Opgelet: de relais is onderaan niet geïsoleerd!
+
+1)   remove the jumper
+2)   connect the external supply (9V) with + to VCC on the module and - to GND on the module.  The coils are then driven by the external.
+3)   Arduino  should be connected with its GND to COM on the module and with signal wire (HIGH/LOW) to the  In-pins on the module.
