@@ -51,7 +51,7 @@ int angle = 90;
 // step by step rotation (local var)
 int pos;
 // time in milliseconds in which the servo is turned (for chickens: 8 hours = 8h * 60m * 60s * 1000ms = 28800000
-const long servoFrequency = 28800000;
+const long servoFrequency = 28800000; //60000;
 
 // variable to know when to tilt!
 long startTime = 0;
@@ -90,6 +90,9 @@ void setup() {
 
   // setup servo
   myServo.attach(9);
+  //// SET THE SERVO STARTING ANGLE
+  //angle = rightAngle;
+  //myServo.write(angle);
   
   // var to keep track of tilting
   startTime = millis();
