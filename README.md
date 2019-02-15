@@ -8,6 +8,7 @@ Built with the Arduino Starter kit!
   + 40W light bulb
   + (long) jumper wires
   + isolated container
+  + external power 5V
 
 Display
 -------
@@ -38,10 +39,9 @@ Connect
 
 Velleman 4 channel relay module VMA400
 ---------------------------------------
-Soldeer drie draden aan de relais op VCC, GND en IN1, verbind respectievelijk met VCC (+), GND (-) en digitale poort 2 van de Arduino (breaboard 25).
+Standaard wordt de voeding van de Arduino gebruikt om de relais te sturen, dit kan de Arduino beschadigen. Gebruik een externe voeding:
+1. Verwijder de jumper op de relais
+2. Connecteer de externe voeding (5-9V) met de + aan de VCC van de relais module en met de - aan de GND van de relais module. De lamp wordt nu gevoed door de externe voeding.
+3. Verbindt de Arduino  met de GND aan COM van de relais module en met de digitale poort 2 aan de In-pins van de relais module.
 
 Knip 1 draad van de 220V voeding naar de lamp door en bevestig de uiteinden aan de normal closed poorten van relais 1. Opgelet: de relais is onderaan niet geïsoleerd!
-
-1)   remove the jumper
-2)   connect the external supply (9V) with + to VCC on the module and - to GND on the module.  The coils are then driven by the external.
-3)   Arduino  should be connected with its GND to COM on the module and with signal wire (HIGH/LOW) to the  In-pins on the module.
