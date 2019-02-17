@@ -53,5 +53,5 @@ Pushbutton
 ----------
 De eieren worden alle 8 uur gedraaid. Om het draaien van de eieren manueel te starten voegen we een drukknop toe.
 Connect
-  + one side > resistor 220 Ohm > Arduino pin 8
-  + other side to ground
+  + One side > resistor 220 Ohm > Arduino pin 8
+  + Other side to ground
