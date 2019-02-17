@@ -3,11 +3,12 @@
   Arduino egg hatcher
 
   Parts required:
-  - one TMP36 temperature sensor
-  - 1 red LEDs
-  - 1 220 ohm resistor
-  - Velleman VMA311 (DHT11)
-  - Velleman 4 channel relay module VMA400
+  - one TMP36 temperature sensor  // double check on breading temp
+  - 1 red LEDs                    // shows when heating is on
+  - 1 220 ohm resistor            // protects LED, helps pushbutton
+  - Velleman VMA311 (DHT11)       // used for regulating breading temp & humidity
+  - Relco VLM 99085 snoerdimmer   // used for diming IR light
+  - Velleman 4 channel relay module VMA400 // IR light switch
 
   created 9 februari 2019
   by Koen Mestdag
@@ -44,18 +45,21 @@ Servo myServo;
 // the pin that is connected to the servo
 int const potPin = A1;
 // angle switches
-const int leftAngle = 70;
-const int rightAngle = 110;
+const int leftAngle = 65;
+const int rightAngle = 125;
 // the current angle
-int angle = 90;
+int angle = 120;
 // step by step rotation (local var)
 int pos;
 // time in milliseconds in which the servo is turned (for chickens: 8 hours = 8h * 60m * 60s * 1000ms = 28800000
-const long servoFrequency = 28800000; //60000;
+const long servoFrequency = 28800000; //15000;
 
 // variable to know when to tilt!
-long startTime = 0;
-long elapsedTime = 0;
+long startTime = 0; // time sinds startup
+long elapsedTime = 0; // time sinds last turn
+// pushbutton to manually control the turn
+const int servoButtonPin = 8;
+int buttonState = 0;         // variable for reading the pushbutton status
 
 // The lcd control
 // the value of the potentiometer which stears lcd
@@ -67,7 +71,7 @@ void setup() {
   // open a serial connection to display values on computer
   Serial.begin(9600);
   
-  // set the LED pins as outputs
+  // set the LED / IR-lamp pin as outputs
   pinMode(LIGHT_BULB_INDEX, OUTPUT);
   // turn LAMP ON
   digitalWrite(LIGHT_BULB_INDEX, HIGH);
@@ -77,10 +81,12 @@ void setup() {
   lcd.begin(16, 2);
   // Print a message to the LCD.
   lcd.setCursor(0, 0);
-  lcd.print("STARTING");
+  lcd.print("STARTING        ");
   // set the cursor to column 0, line 1
   lcd.setCursor(0, 1);
-  lcd.print("EGG BREADING");
+  lcd.print("EGG BREADING    ");
+  // display & load servo capacitators
+  delay(1000);
 
   // initialize averagetemp
   int i;
@@ -88,24 +94,33 @@ void setup() {
     temps[i] = averagetemp;
   }
 
-  // setup servo
+  // setup servo: attach servo object to Arduino digital out 9
   myServo.attach(9);
-  //// SET THE SERVO STARTING ANGLE
-  //angle = rightAngle;
-  //myServo.write(angle);
+  angle = myServo.read();
+  delay(500);
+  // SET THE SERVO STARTING ANGLE > otherwise the servo goes very fast to rightangle pos
+  if(angle < 90) {
+    Serial.print("Moving servo from ");
+    Serial.print(angle);
+    Serial.println(" to 180");
+    angle = turnUp(angle, rightAngle, 50);
+  } else {
+    Serial.print("Moving servo from ");
+    Serial.print(angle);
+    Serial.println(" to 60");
+    angle = turnDown(angle, leftAngle, 50);
+  }
   
   // var to keep track of tilting
   startTime = millis();
   elapsedTime = 0;
+  // initialize the pushbutton pin as an input:
+  pinMode(servoButtonPin, INPUT);
 
-  // start with clear messages on the LCD
   Serial.print("STARTING WITH TARGET T = ");
   Serial.println(targetTemp);
-
-  
-  // show the message
-  delay(500);
   Serial.println("STARTED");
+
   // show the message
   delay(500);
 }
@@ -148,12 +163,13 @@ void loop() {
   // delay to give temp and humidity sensors time to read
   delay(1000);
   dhtTemp = DHT.temperature;
+  
   Serial.print("Temperature Velleman = ");
   Serial.print(dhtTemp);
   Serial.print(" Humidity = ");
   Serial.println(DHT.humidity);
 
-  // TURN LIGHT ON / OFF TO MANIPULATE TEMPERATURE
+  // Turn light on / off to manipulate temperature
   if(dhtTemp > 1) {
     // correct reading, proceed
     if (dhtTemp < targetTemp - 0.0) { // + 2) {
@@ -167,32 +183,37 @@ void loop() {
     }
   }
 
-  // turn the eggs every 8 hour! = 3600s * 8
-  // calculate the time sinds last check
+  // Turn the eggs when manual button is pressed. If it is, the buttonState is HIGH.
+  // OR turn the eggs every servoFrequency seconds (should be 8 hours)
+
+  // -> read the state of the pushbutton value:
+  buttonState = digitalRead(servoButtonPin);
+
+  // Calculate the time sinds last check
   elapsedTime = millis() - startTime;
-  if(elapsedTime >= servoFrequency) {
+
+  if(buttonState == HIGH) {
+    Serial.println("BUTTON PRESSED!!");
+  }
+  
+  if((elapsedTime >= servoFrequency) || (buttonState == HIGH)) {
     startTime = millis();
     if (angle == leftAngle) {
-      angle = rightAngle;
-      for (pos = leftAngle; pos <= rightAngle; pos += 1) { // goes from 0 degrees to 180 degrees
-        // in steps of 1 degree
-        myServo.write(pos);              // tell servo to go to position in variable 'pos'
-        delay(150);                       // waits 15ms for the servo to reach the position
-        Serial.print("SERVO MOVED TO POS ");
-        Serial.println(myServo.read());
-      }
+      angle = turnUp(leftAngle, rightAngle, 150);
     } else {
-      angle = leftAngle;
-      for (pos = rightAngle; pos >= leftAngle; pos -= 1) { // goes from 180 degrees to 0 degrees
-        myServo.write(pos);              // tell servo to go to position in variable 'pos'
-        delay(150);                       // waits 15ms for the servo to reach the position
-        Serial.print("SERVO MOVED TO POS ");
-        Serial.println(myServo.read());
-      }
+      angle = turnDown(rightAngle, leftAngle, 150);
     };
+    
+    // i am having a problem with scrambled chars on my lcd screen: so reset every 8 hours :)
+    lcd.begin(16, 2);
+    lcd.setCursor(0, 0);
+    lcd.println("RESET LCD       ");
+    lcd.setCursor(0, 1);
+    lcd.println("RESET LCD       ");
+    
     // wait for right pos
     delay(1000);
-    Serial.print("EGGS WERE TURNED TO ANGLE ");
+    Serial.print("Eggs were turned to angle ");
     Serial.print(angle);
     Serial.print(" at ");
     Serial.print((millis() / 1000));
@@ -204,7 +225,7 @@ void loop() {
   // change the 1023 bits to 5 posibilities
   lcdSwitch = map(potVal, 0, 1023, 0, 5);
   // Display
-  lcd.clear();
+//  lcd.clear(); // weard chars: try to eliminate
   switch (lcdSwitch) {
     case 0:
       // DISPLAY TARGETTEMP & SERVO ANGLE
@@ -259,15 +280,49 @@ void loop() {
       lcd.print("Cheap t avg");
       lcd.println(temperature);
       break;
+    case 4:
+        default:
+      // DISPLAY CREDITS
+      lcd.setCursor(0, 0);
+      lcd.println("BY KOEN MESTDAG!");
+      Serial.println("4 CREDITS!!");
+      break;  
     default:
       // DISPLAY CREDITS
       lcd.setCursor(0, 0);
-      lcd.println("  KOEN MESTDAG");
+      lcd.println("  KOEN MESTDAG  ");
       lcd.setCursor(0, 1);
-      lcd.println("* * * * * * * *");
+      lcd.println("* * * * * * * * ");
+      Serial.println("5 CREDITS!!");
       break;
   }
 
   // wait for x * 1000ms so that the lamps do not keep going on and off
   delay(100);
+}
+
+// function to rotate servo from low to high position
+// low: startpos, high: endpos, delayTime: the time the servo pauze to proceed to next degree
+int turnUp(int low, int high, int delayTime) {
+  int pos;
+  for (pos = low; pos <= high; pos += 1) { // goes from LOW degrees to HIGH degrees (min 0- max 180)
+    // in steps of 1 degree
+    myServo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(150);                       // waits 15ms for the servo to reach the position, to not throw the eggs to the wall
+    Serial.print("SERVO MOVED TO POS ");
+    Serial.println(myServo.read());
+  }
+  return (myServo.read());
+}
+
+// function to rotate servo from high to low position
+int turnDown(int high, int low, int delayTime) {
+  int pos;
+  for (pos = high; pos >= low; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myServo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(150);                       // waits 15ms for the servo to reach the position, to not throw the eggs to the wall
+    Serial.print("SERVO MOVED TO POS ");
+    Serial.println(myServo.read());
+  }
+  return (myServo.read());
 }
