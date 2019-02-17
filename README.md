@@ -42,7 +42,7 @@ Connect
 
 Velleman 4 channel relay module VMA400
 ---------------------------------------
-Standaard wordt de voeding van de Arduino gebruikt om de relais te sturen, dit kan de Arduino beschadigen. Voor gebruik een externe voeding:
+Standaard wordt de voeding van de Arduino gebruikt om de relais te sturen, dit kan de Arduino beschadigen. Voor gebruik van een externe voeding:
   1. Verwijder de jumper op de relais
   2. Connecteer de externe voeding (5-9V) met de + aan de VCC van de relais module en met de - aan de GND van de relais module. De lamp wordt nu gevoed door de externe voeding.
   3. Verbindt de Arduino  met de GND aan COM van de relais module en met de digitale poort 2 aan de In-pins van de relais module.
@@ -51,7 +51,7 @@ Knip 1 draad van de 220V voeding naar de lamp door en bevestig de uiteinden aan 
 
 Pushbutton
 ----------
-De eieren worden alle 8 uur gedraaid. Om het draaien van de eieren manueel te starten voegen we een drukknop toe.
+De eieren worden alle 8 uur gedraaid. Om het draaien van de eieren manueel te starten voegen we een drukknop toe.<br>
 Connect
   + One side > resistor 220 Ohm > Arduino pin 8
   + Other side to ground
