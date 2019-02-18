@@ -1,14 +1,16 @@
-
 /*
   Arduino egg hatcher
 
   Parts required:
-  - one TMP36 temperature sensor  // double check on breading temp
-  - 1 red LEDs                    // shows when heating is on
-  - 1 220 ohm resistor            // protects LED, helps pushbutton
-  - Velleman VMA311 (DHT11)       // used for regulating breading temp & humidity
-  - Relco VLM 99085 snoerdimmer   // used for diming IR light
-  - Velleman 4 channel relay module VMA400 // IR light switch
+  - one TMP36 temperature sensor            // double check on breading temp
+  - 1 red LEDs                              // shows when heating is on
+  - 2 220 ohm resistor                      // protects LED, helps pushbutton
+  - Velleman VMA311 (DHT11)                 // used for regulating breading temp & humidity
+  - Relco VLM 99085 snoerdimmer             // used for diming IR light
+  - Velleman 4 channel relay module VMA400  // IR light switch
+  - 1 servo motor                           // servo motor to tilt eggs
+  - 2 XXX capacitors                        // protect board from servo creating power dip
+  - 1 1J63 capacitor (0.1µF = 100nF)                  // used to shield lcd from servo peak
 
   created 9 februari 2019
   by Koen Mestdag
@@ -16,11 +18,11 @@
   This example code is part of the public domain.
 */
 
-// named constant for the pin the sensor is connected to
+// named constant for the pin the temp sensor is connected to
 const int sensorPin = A0;
 // lightbulbindex
 const int LIGHT_BULB_INDEX = 2;
-// room temperature in Celsius
+// target room temperature in Celsius
 const float targetTemp = 37.0;
 // Fix the "floating" temperature reading
 float averagetemp = 162;
@@ -225,7 +227,7 @@ void loop() {
   // change the 1023 bits to 5 posibilities
   lcdSwitch = map(potVal, 0, 1023, 0, 5);
   // Display
-//  lcd.clear(); // weard chars: try to eliminate
+  //  lcd.clear(); // trying to eliminate weard chars
   switch (lcdSwitch) {
     case 0:
       // DISPLAY TARGETTEMP & SERVO ANGLE
@@ -285,7 +287,7 @@ void loop() {
       // DISPLAY CREDITS
       lcd.setCursor(0, 0);
       lcd.println("BY KOEN MESTDAG!");
-      Serial.println("4 CREDITS!!");
+      Serial.println("4: CREDITS!!");
       break;  
     default:
       // DISPLAY CREDITS
@@ -301,8 +303,8 @@ void loop() {
   delay(100);
 }
 
-// function to rotate servo from low to high position
-// low: startpos, high: endpos, delayTime: the time the servo pauze to proceed to next degree
+/* function to rotate servo from low to high position */
+/* low: startpos, high: endpos, delayTime: the time the servo pauze to proceed to next degree */
 int turnUp(int low, int high, int delayTime) {
   int pos;
   for (pos = low; pos <= high; pos += 1) { // goes from LOW degrees to HIGH degrees (min 0- max 180)
@@ -315,7 +317,7 @@ int turnUp(int low, int high, int delayTime) {
   return (myServo.read());
 }
 
-// function to rotate servo from high to low position
+/* function to rotate servo from high to low position */
 int turnDown(int high, int low, int delayTime) {
   int pos;
   for (pos = high; pos >= low; pos -= 1) { // goes from 180 degrees to 0 degrees
