@@ -2,7 +2,7 @@
 Maak met je Arduino een broedmachine voor (kippe)eieren
 
 Built with
-  + The Arduino Starter kit! (servo, pushbutton, lcd, LED, breadboard, arduino ;-) )
+  + The Arduino Starter kit! (servo, pushbutton, lcd, LED, breadboard, 2 XXX capacitors, 1 1J63 capacitor (0.1µF = 100nF), arduino ;-) )
   + Velleman VMA311
   + Velleman VMA400
   + 220V cable
@@ -32,6 +32,8 @@ Connect
   + Motor Black wire > +5V (breadboard 18)
   + Motor Red wire   > GND (breadboard 17)
   + Motor White wire > Arduino Digital 9 (breadboard 16)
+  + 2 XXX capacitors short leg to red (-) and long leg to reblack wire (+)         // protect board from servo creating power dip
+  + 1 1J63 capacitor (0.1µF = 100nF) between motor steering white wire and ground  // used to shield lcd from servo peak
 
 Velleman VMA311 (DHT11) Temp & Humidity (breadboard 28, 29, 30)
 ---------------------------------------
