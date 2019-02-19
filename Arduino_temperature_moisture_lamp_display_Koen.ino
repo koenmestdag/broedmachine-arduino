@@ -25,8 +25,10 @@ const int LIGHT_BULB_INDEX = 2;
 // target room temperature in Celsius
 const float targetTemp = 37.0;
 // Fix the "floating" temperature reading
-float averagetemp = 162;
-float temps[25];
+// // float averagetemp = 162;
+// // float temps[25];
+float vellemanAveragetemp = 37;
+float vellemanTemps[25];
 float dhtTemp;
 
 // Set up the LCD
@@ -35,7 +37,7 @@ float dhtTemp;
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 
-// Set up the temp & moisture
+// Set up the temp & moisture for the Velleman component
 #include <dht.h>
 dht DHT;
 #define DHT11_PIN 7
@@ -47,7 +49,7 @@ Servo myServo;
 // the pin that is connected to the servo
 int const potPin = A1;
 // angle switches
-const int leftAngle = 65;
+const int leftAngle = 70;
 const int rightAngle = 125;
 // the current angle
 int angle = 120;
@@ -92,8 +94,17 @@ void setup() {
 
   // initialize averagetemp
   int i;
+ /*   for (i = 0; i < 25; i++) {
+        temps[i] = averagetemp;
+    }
+ */
+  int chk = DHT.read11(DHT11_PIN);
+  // delay to give temp and humidity sensors time to read
+  delay(1000);
+  dhtTemp = DHT.temperature;
+  // initialize averagetemp
   for (i = 0; i < 25; i++) {
-    temps[i] = averagetemp;
+    vellemanTemps[i] = dhtTemp;
   }
 
   // setup servo: attach servo object to Arduino digital out 9
@@ -121,7 +132,8 @@ void setup() {
 
   Serial.print("STARTING WITH TARGET T = ");
   Serial.println(targetTemp);
-  Serial.println("STARTED");
+  Serial.print("STARTED at ");
+  Serial.println(dhtTemp);
 
   // show the message
   delay(500);
@@ -132,8 +144,18 @@ void loop() {
   // READ CHEAP TEMP
   // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
   int sensorVal = analogRead(sensorPin);
-  // temperature varies to much: calculate average!
+  // convert the ADC reading to voltage
+  float voltage = (sensorVal / 1024.0) * 5.0;
+  // convert the voltage to temperature in degrees C
+  // the sensor changes 10 mV per degree
+  // the datasheet says there's a 500 mV offset
+  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
+  float temperature = (voltage - .5) * 100;
+
+
   int i;
+/*  
+  // temperature varies to much: calculate average!
   averagetemp = 0;
   for (i = 24; i > 0; i--) {
     averagetemp = averagetemp + temps[i];
@@ -160,26 +182,42 @@ void loop() {
   Serial.print("] Actual cheap[");
   Serial.print(temperature);
   Serial.println("]");
-
+*/
   int chk = DHT.read11(DHT11_PIN);
   // delay to give temp and humidity sensors time to read
   delay(1000);
   dhtTemp = DHT.temperature;
+  if(dhtTemp > 1) { // only when good reading
+    vellemanAveragetemp = 0;
+    for (i = 24; i > 0; i--) {
+      vellemanAveragetemp = vellemanAveragetemp + vellemanTemps[i];
+      vellemanTemps[i] = vellemanTemps[i - 1];
+    }
+    vellemanTemps[0] = dhtTemp; // at last reading
+    vellemanAveragetemp = vellemanAveragetemp + vellemanTemps[0];
+    vellemanAveragetemp = vellemanAveragetemp / 25; // calculate average: sum all and devide by count
+    
+    Serial.print("Temperature Velleman = ");
+    Serial.print(dhtTemp);
+    Serial.print(" average ");
+    Serial.print(vellemanAveragetemp);
+    Serial.print(" Humidity = ");
+    Serial.println(DHT.humidity);
   
-  Serial.print("Temperature Velleman = ");
-  Serial.print(dhtTemp);
-  Serial.print(" Humidity = ");
-  Serial.println(DHT.humidity);
-
-  // Turn light on / off to manipulate temperature
-  if(dhtTemp > 1) {
+    // Turn light on / off to manipulate temperature
     // correct reading, proceed
-    if (dhtTemp < targetTemp - 0.0) { // + 2) {
+    if (vellemanAveragetemp < (targetTemp - 0.5)) {
         // too cold: turn light on
         digitalWrite(LIGHT_BULB_INDEX, HIGH);
-    } else if (dhtTemp > targetTemp + 0.0) {
-        // too warm: turn light off
+        Serial.print("Turning lamp on at ");
+        Serial.println(dhtTemp);
+        delay(1000); // keep from switching on and off again
+    } else if ((vellemanAveragetemp > (targetTemp + 0.9)) || (dhtTemp >= targetTemp + 2)) {
+        // when average too warm: turn light off, of when to hot: immediately cool down!
         digitalWrite(LIGHT_BULB_INDEX, LOW);
+        Serial.print("Turning lamp off at ");
+        Serial.println(dhtTemp);
+        delay(1000); // keep from switching on and off again
     } else {
         // keep lamp on or off, temp is OK
     }
@@ -225,7 +263,7 @@ void loop() {
   // read the value of the potentio switch to switch text on display
   potVal = analogRead(potPin);
   // change the 1023 bits to 5 posibilities
-  lcdSwitch = map(potVal, 0, 1023, 0, 5);
+  lcdSwitch = map(potVal, 0, 1023, 0, 10);
   // Display
   //  lcd.clear(); // trying to eliminate weard chars
   switch (lcdSwitch) {
@@ -264,6 +302,7 @@ void loop() {
       float rot = (millis() - startTime);
       rot = rot / 1000;
       rot = rot / 60;
+      lcd.println(rot);
       Serial.print("Last Rot millis()");
       Serial.print(millis());
       Serial.print("< starttime>");
@@ -271,7 +310,6 @@ void loop() {
       Serial.print("< >");
       Serial.print("< timePast>");
       Serial.println(rot);
-      lcd.println(rot);
       break;
     case 3:
       // DISPLAY CHEAP TEMP SENSOR AVG READING
@@ -279,14 +317,17 @@ void loop() {
       lcd.print("4.ServoAngle ");
       lcd.println((int)angle);
       lcd.setCursor(0, 1);
-      lcd.print("Cheap t avg");
-      lcd.println(temperature);
+      lcd.print("AVG temp");
+      lcd.println(vellemanAveragetemp);
       break;
     case 4:
         default:
       // DISPLAY CREDITS
       lcd.setCursor(0, 0);
       lcd.println("BY KOEN MESTDAG!");
+      lcd.setCursor(0, 1);
+      lcd.print("Tcheap");
+      lcd.println(temperature);
       Serial.println("4: CREDITS!!");
       break;  
     default:
@@ -295,7 +336,7 @@ void loop() {
       lcd.println("  KOEN MESTDAG  ");
       lcd.setCursor(0, 1);
       lcd.println("* * * * * * * * ");
-      Serial.println("5 CREDITS!!");
+      Serial.println("5: CREDITS!!");
       break;
   }
 
@@ -303,7 +344,7 @@ void loop() {
   delay(100);
 }
 
-/* function to rotate servo from low to high position */
+/* Function to rotate servo from low to high position */
 /* low: startpos, high: endpos, delayTime: the time the servo pauze to proceed to next degree */
 int turnUp(int low, int high, int delayTime) {
   int pos;
@@ -317,7 +358,7 @@ int turnUp(int low, int high, int delayTime) {
   return (myServo.read());
 }
 
-/* function to rotate servo from high to low position */
+/* Function to rotate servo from high to low position */
 int turnDown(int high, int low, int delayTime) {
   int pos;
   for (pos = high; pos >= low; pos -= 1) { // goes from 180 degrees to 0 degrees
