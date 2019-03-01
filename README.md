@@ -1,5 +1,5 @@
 # broedmachine-arduino
-Maak met je Arduino een broedmachine voor (kippe)eieren
+Maak met je Arduino een broedkas om je (kippe)eieren uit te broeden
 
 Built with
   + The Arduino Starter kit! (servo, pushbutton, lcd, LED, breadboard, 2 XXX capacitors, 1 1J63 capacitor (0.1µF = 100nF), arduino ;-) )
