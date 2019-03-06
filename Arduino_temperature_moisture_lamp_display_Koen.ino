@@ -22,14 +22,17 @@
 const int sensorPin = A0;
 // lightbulbindex
 const int LIGHT_BULB_INDEX = 2;
+
 // target room temperature in Celsius
 const float targetTemp = 37.0;
-// Fix the "floating" temperature reading
-// // float averagetemp = 162;
-// // float temps[25];
 float vellemanAveragetemp = 37;
 float vellemanTemps[25];
 float dhtTemp;
+
+// second temp measurement
+// Fix the "floating" temperature reading
+float averagetemp = targetTemp; // starting average (confirms to 37°)
+float temps[25]; // use average of 25 readings because there is to much fluctuation
 
 // Set up the LCD
 // include the LCD code library:
@@ -39,8 +42,8 @@ LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 
 // Set up the temp & moisture for the Velleman component
 #include <dht.h>
-dht DHT;
-#define DHT11_PIN 7
+dht DHT; // load class to connect to Velleman
+#define DHT11_PIN 7 // set pin of temp reader
 
 // set up servo
 #include <Servo.h>
@@ -92,12 +95,7 @@ void setup() {
   // display & load servo capacitators
   delay(1000);
 
-  // initialize averagetemp
   int i;
- /*   for (i = 0; i < 25; i++) {
-        temps[i] = averagetemp;
-    }
- */
   int chk = DHT.read11(DHT11_PIN);
   // delay to give temp and humidity sensors time to read
   delay(1000);
@@ -105,6 +103,11 @@ void setup() {
   // initialize averagetemp
   for (i = 0; i < 25; i++) {
     vellemanTemps[i] = dhtTemp;
+  }
+
+  // initialize second temp reading
+  for (i = 0; i < 25; i++) {
+    temps[i] = averagetemp;
   }
 
   // setup servo: attach servo object to Arduino digital out 9
@@ -141,53 +144,13 @@ void setup() {
 
 void loop() {  
 
-  // READ CHEAP TEMP
-  // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
-  int sensorVal = analogRead(sensorPin);
-  // convert the ADC reading to voltage
-  float voltage = (sensorVal / 1024.0) * 5.0;
-  // convert the voltage to temperature in degrees C
-  // the sensor changes 10 mV per degree
-  // the datasheet says there's a 500 mV offset
-  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
-  float temperature = (voltage - .5) * 100;
-
-
   int i;
-/*  
-  // temperature varies to much: calculate average!
-  averagetemp = 0;
-  for (i = 24; i > 0; i--) {
-    averagetemp = averagetemp + temps[i];
-    temps[i] = temps[i - 1];
-  }
-  temps[0] = sensorVal;
-  averagetemp = averagetemp + temps[0];
-  averagetemp = averagetemp / 25;
-
-  // convert the ADC reading to voltage
-  float voltage = (averagetemp / 1024.0) * 5.0;
-
-  // convert the voltage to temperature in degrees C
-  // the sensor changes 10 mV per degree
-  // the datasheet says there's a 500 mV offset
-  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
-  float temperature = (voltage - .5) * 100;
-
-  Serial.print(" AVG[");
-  Serial.print(averagetemp);
-  Serial.print("]");
-  Serial.print("Target[");
-  Serial.print(targetTemp);
-  Serial.print("] Actual cheap[");
-  Serial.print(temperature);
-  Serial.println("]");
-*/
   int chk = DHT.read11(DHT11_PIN);
   // delay to give temp and humidity sensors time to read
   delay(1000);
   dhtTemp = DHT.temperature;
-  if(dhtTemp > 1) { // only when good reading
+
+  if(dhtTemp > 1) { // only when good reading: calculate moving temp and stear lamps
     vellemanAveragetemp = 0;
     for (i = 24; i > 0; i--) {
       vellemanAveragetemp = vellemanAveragetemp + vellemanTemps[i];
@@ -197,9 +160,9 @@ void loop() {
     vellemanAveragetemp = vellemanAveragetemp + vellemanTemps[0];
     vellemanAveragetemp = vellemanAveragetemp / 25; // calculate average: sum all and devide by count
     
-    Serial.print("Temperature Velleman = ");
+    Serial.print("Velleman temperature: ");
     Serial.print(dhtTemp);
-    Serial.print(" average ");
+    Serial.print(" AVG:");
     Serial.print(vellemanAveragetemp);
     Serial.print(" Humidity = ");
     Serial.println(DHT.humidity);
@@ -223,18 +186,45 @@ void loop() {
     }
   }
 
+
+  // second temp reading temperature varies to much: calculate average!
+  // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
+  int sensorVal = analogRead(sensorPin);
+  // convert the ADC reading to voltage
+  float voltage = (sensorVal / 1024.0) * 5.0;
+  // convert the voltage to temperature in degrees C
+  // the sensor changes 10 mV per degree
+  // the datasheet says there's a 500 mV offset
+  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
+  float temperature = (voltage - .5) * 100;
+
+  averagetemp = 0;
+  for (i = 24; i > 0; i--) {
+    averagetemp = averagetemp + temps[i];
+    temps[i] = temps[i - 1];
+  }
+  temps[0] = temperature;
+  averagetemp = averagetemp + temps[0];
+  averagetemp = averagetemp / 25;
+
+  Serial.print("Cheap: AVG[");
+  Serial.print(averagetemp);
+  Serial.print("]");
+  Serial.print("Target[");
+  Serial.print(targetTemp);
+  Serial.print("] Actual [");
+  Serial.print(temperature);
+  Serial.println("]");
+
   // Turn the eggs when manual button is pressed. If it is, the buttonState is HIGH.
   // OR turn the eggs every servoFrequency seconds (should be 8 hours)
-
   // -> read the state of the pushbutton value:
   buttonState = digitalRead(servoButtonPin);
-
-  // Calculate the time sinds last check
-  elapsedTime = millis() - startTime;
-
   if(buttonState == HIGH) {
     Serial.println("BUTTON PRESSED!!");
   }
+  // Calculate the time sinds last check
+  elapsedTime = millis() - startTime;
   
   if((elapsedTime >= servoFrequency) || (buttonState == HIGH)) {
     startTime = millis();
@@ -262,8 +252,14 @@ void loop() {
 
   // read the value of the potentio switch to switch text on display
   potVal = analogRead(potPin);
-  // change the 1023 bits to 5 posibilities
-  lcdSwitch = map(potVal, 0, 1023, 0, 10);
+  
+  // change the 1023 bits to 6 posibilities
+  lcdSwitch = map(potVal, 0, 1023, 0, 6);
+  Serial.print("Potentiometer: ");
+  Serial.print(potVal);
+  Serial.print(" lcdSwitch ");
+  Serial.println(lcdSwitch);
+  
   // Display
   //  lcd.clear(); // trying to eliminate weard chars
   switch (lcdSwitch) {
@@ -281,6 +277,7 @@ void loop() {
       lcd.print(" M");
       lcd.print(DHT.humidity);
       lcd.println("%");
+      Serial.println("0: DISPLAY TARGETTEMP & SERVO ANGLE");
       break;
     case 1:
       // DISPLAY COLLAPSED TIME SINDS BREADING STARTED
@@ -290,6 +287,7 @@ void loop() {
       lcd.setCursor(0, 1);
       lcd.print("Bread(d)");
       lcd.println((int)millis() / 3600000 / 24);
+      Serial.println("1: DISPLAY COLLAPSED TIME SINDS BREADING STARTED");
       break;
     case 2:
       // DISPLAY SERVO SETTINGS & LAST ROTATION
@@ -303,7 +301,7 @@ void loop() {
       rot = rot / 1000;
       rot = rot / 60;
       lcd.println(rot);
-      Serial.print("Last Rot millis()");
+      Serial.print("2. Last Rot millis()");
       Serial.print(millis());
       Serial.print("< starttime>");
       Serial.print(startTime);
@@ -312,13 +310,18 @@ void loop() {
       Serial.println(rot);
       break;
     case 3:
-      // DISPLAY CHEAP TEMP SENSOR AVG READING
+      // DISPLAY TEMP SENSOR AVG READING
       lcd.setCursor(0, 0);
       lcd.print("4.ServoAngle ");
       lcd.println((int)angle);
       lcd.setCursor(0, 1);
       lcd.print("AVG temp");
       lcd.println(vellemanAveragetemp);
+      Serial.print("3: CHEAP TEMP READING ");
+      Serial.print(" Velleman:");
+      Serial.print(vellemanAveragetemp);
+      Serial.print(" Cheap:");
+      Serial.println(averagetemp);
       break;
     case 4:
         default:
