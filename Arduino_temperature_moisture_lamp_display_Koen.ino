@@ -106,6 +106,7 @@ void setup() {
   }
 
   // initialize second temp reading
+  averagetemp = getCheapTempReading(sensorPin);
   for (i = 0; i < 25; i++) {
     temps[i] = averagetemp;
   }
@@ -188,15 +189,7 @@ void loop() {
 
 
   // second temp reading temperature varies to much: calculate average!
-  // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
-  int sensorVal = analogRead(sensorPin);
-  // convert the ADC reading to voltage
-  float voltage = (sensorVal / 1024.0) * 5.0;
-  // convert the voltage to temperature in degrees C
-  // the sensor changes 10 mV per degree
-  // the datasheet says there's a 500 mV offset
-  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
-  float temperature = (voltage - .5) * 100;
+  float temperature = getCheapTempReading(sensorPin);
 
   averagetemp = 0;
   for (i = 24; i > 0; i--) {
@@ -371,4 +364,18 @@ int turnDown(int high, int low, int delayTime) {
     Serial.println(myServo.read());
   }
   return (myServo.read());
+}
+
+/* Function which reads temp of sensor */
+float getCheapTempReading(int pin) {
+  // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
+  int sensorVal = analogRead(pin);
+  // convert the ADC reading to voltage
+  float voltage = (sensorVal / 1024.0) * 5.0;
+  // convert the voltage to temperature in degrees C
+  // the sensor changes 10 mV per degree
+  // the datasheet says there's a 500 mV offset
+  // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
+  float temperature = (voltage - .5) * 100;
+  return temperature;
 }
