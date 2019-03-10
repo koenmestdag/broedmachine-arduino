@@ -2,7 +2,7 @@
 Maak met je Arduino een broedkas om je (kippe)eieren uit te broeden
 
 Is gebouwd met:
-  + The Arduino Starter kit! (servo, pushbutton, lcd, LED, 2 breadboards, 2 XXX capacitors, 1 1J63 capacitor (0.1µF = 100nF), 1 arduino)
+  + The Arduino Starter kit! (servo, pushbutton, lcd, LED, 2 breadboards, 2 XXX capacitors, 1 1J63 capacitor (0.1µF = 100nF), 1 piezo, 1 arduino)
   + Velleman VMA311
   + Velleman VMA400
   + 220V cable
@@ -56,4 +56,11 @@ Pushbutton
 De eieren worden alle 8 uur gedraaid. Om het draaien van de eieren manueel te starten voegen we een drukknop toe.<br>
 Connect
   + Een pin > resistor 220 Ohm > Arduino pin 8
-  + andere pint > ground
+  + andere pin > ground
+
+Piezo
+-----
+Sound the alarm when temperature goes below threshold (eg heating element is malfunctioning)
+Connect
+  + Een pin naar ground
+  + andere pin > 10
