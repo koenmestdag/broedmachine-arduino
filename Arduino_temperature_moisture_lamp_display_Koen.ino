@@ -10,7 +10,7 @@
   - Velleman 4 channel relay module VMA400  // IR light switch
   - 1 servo motor                           // servo motor to tilt eggs
   - 2 XXX capacitors                        // protect board from servo creating power dip
-  - 1 1J63 capacitor (0.1µF = 100nF)                  // used to shield lcd from servo peak
+  - 1 1J63 capacitor (0.1µF = 100nF)        // used to shield lcd from servo peak
 
   created 9 februari 2019
   by Koen Mestdag
@@ -68,6 +68,14 @@ long elapsedTime = 0; // time sinds last turn
 const int servoButtonPin = 8;
 int buttonState = 0;         // variable for reading the pushbutton status
 
+// variables to know how long light is on / off
+boolean lampOn = false;
+long lampOnTime = 0;
+long lampOffTime = 0;
+
+// Alarm piezo
+int piezoPin = 10;
+
 // The lcd control
 // the value of the potentiometer which stears lcd
 int potVal;
@@ -81,6 +89,7 @@ void setup() {
   // set the LED / IR-lamp pin as outputs
   pinMode(LIGHT_BULB_INDEX, OUTPUT);
   // turn LAMP ON
+  lampOn = true;
   digitalWrite(LIGHT_BULB_INDEX, HIGH);
 
   // start up the display
@@ -138,9 +147,6 @@ void setup() {
   Serial.println(targetTemp);
   Serial.print("STARTED at ");
   Serial.println(dhtTemp);
-
-  // show the message
-  delay(500);
 }
 
 void loop() {  
@@ -172,12 +178,28 @@ void loop() {
     // correct reading, proceed
     if (vellemanAveragetemp < (targetTemp - 0.5)) {
         // too cold: turn light on
+
+        // lamp could be already on: check
+        if(!lampOn) {
+          // start clock
+          lampOnTime = millis();
+          lampOn = true;
+        }
+        
         digitalWrite(LIGHT_BULB_INDEX, HIGH);
         Serial.print("Turning lamp on at ");
         Serial.println(dhtTemp);
         delay(1000); // keep from switching on and off again
     } else if ((vellemanAveragetemp > (targetTemp + 0.9)) || (dhtTemp >= targetTemp + 2)) {
         // when average too warm: turn light off, of when to hot: immediately cool down!
+
+        // lamp could be already off: check
+        if(lampOn) {
+          // start clock
+          lampOffTime = millis();
+          lampOn = false;
+        }
+        
         digitalWrite(LIGHT_BULB_INDEX, LOW);
         Serial.print("Turning lamp off at ");
         Serial.println(dhtTemp);
@@ -185,8 +207,18 @@ void loop() {
     } else {
         // keep lamp on or off, temp is OK
     }
+/*  } else {
+    // meter malfunction!!
+    tone(piezoPin, 1000, 100); // arguments: stear piezopin, frequency 1000, ms to play) */
   }
 
+/*  if(dhtTemp < 35) {
+    tone(10, 1000);//, 500);
+    Serial.println("Piezo ON");
+    delay(600);
+    Serial.println("Piezo OFF");
+  }
+*/
 
   // second temp reading temperature varies to much: calculate average!
   float temperature = getCheapTempReading(sensorPin);
@@ -255,85 +287,67 @@ void loop() {
   
   // Display
   //  lcd.clear(); // trying to eliminate weard chars
-  switch (lcdSwitch) {
-    case 0:
+  String lcdText;
+  if (lcdSwitch == 0) {
       // DISPLAY TARGETTEMP & SERVO ANGLE
       // DISPLAY MEASURED TEMP & HUMIDITY
       lcd.setCursor(0, 0);
-      lcd.print("t");
-      lcd.print(targetTemp);
-      lcd.print(" angle");
-      lcd.println(angle);
+      lcdText = appendSpaces(String("T" + String(DHT.temperature) + " M" + String(DHT.humidity)), 16);
+      lcd.println(lcdText);
       lcd.setCursor(0, 1);
-      lcd.print("T");
-      lcd.print(DHT.temperature);
-      lcd.print(" M");
-      lcd.print(DHT.humidity);
-      lcd.println("%");
-      Serial.println("0: DISPLAY TARGETTEMP & SERVO ANGLE");
-      break;
-    case 1:
+      lcdText = appendSpaces(String("Avg temp" + String(vellemanAveragetemp, 1)), 16);
+      lcd.println(lcdText);
+      Serial.println("case 0");
+ } else if(lcdSwitch == 1) {
       // DISPLAY COLLAPSED TIME SINDS BREADING STARTED
       lcd.setCursor(0, 0);
-      lcd.print("2.Bread(h)");
-      lcd.println((float)millis() / 3600000);
+      float timeCollapsed = (millis() - lampOffTime) / 1000;
+      lcdText = appendSpaces(String("LampOff s" + String(timeCollapsed, 1)), 16);
+      Serial.print(lcdText + "  > ");
+      Serial.print(String(lampOffTime, 1));
+      Serial.print(" > ");
+      Serial.println(String(millis(), 1));
+      lcd.println(lcdText);
+      // DISPLAY TIME LAMP ON /OFF
       lcd.setCursor(0, 1);
-      lcd.print("Bread(d)");
-      lcd.println((int)millis() / 3600000 / 24);
-      Serial.println("1: DISPLAY COLLAPSED TIME SINDS BREADING STARTED");
-      break;
-    case 2:
+      timeCollapsed = (millis() - lampOnTime) / 1000;
+      lcdText = appendSpaces(String("LampOn s" + String(timeCollapsed, 1)), 16);
+      Serial.print(lcdText);
+      Serial.print(" >> ");
+      Serial.print(String(lampOnTime, 1));
+      Serial.print(" >> ");
+      Serial.println(String(millis(), 1));
+      Serial.println("case 1");
+      lcd.println(lcdText);
+ } else if(lcdSwitch == 2) {
       // DISPLAY SERVO SETTINGS & LAST ROTATION
       lcd.setCursor(0, 0);
-      lcd.print("3.ServoFr(m)");
       float freq = servoFrequency / 1000 / 60;
-      lcd.println(freq);
+      lcdText = appendSpaces(String("3.ServF(m)" + String(freq, 1)), 16);
+      lcd.println(lcdText);
       lcd.setCursor(0, 1);
-      lcd.print("LastRot(m)");
       float rot = (millis() - startTime);
-      rot = rot / 1000;
-      rot = rot / 60;
-      lcd.println(rot);
-      Serial.print("2. Last Rot millis()");
-      Serial.print(millis());
-      Serial.print("< starttime>");
-      Serial.print(startTime);
-      Serial.print("< >");
-      Serial.print("< timePast>");
-      Serial.println(rot);
-      break;
-    case 3:
+      rot = rot / 1000 / 60;
+      lcdText = appendSpaces(String("ServTurn(m)" + String(rot, 2)), 16);
+      lcd.println(lcdText);
+      Serial.println("case 2");
+ } else if(lcdSwitch == 3) {
       // DISPLAY TEMP SENSOR AVG READING
+      Serial.println("case 3");
       lcd.setCursor(0, 0);
-      lcd.print("4.ServoAngle ");
-      lcd.println((int)angle);
+      lcdText = appendSpaces(String("Servo " + String(angle)), 16);
+      lcd.println(lcdText);
       lcd.setCursor(0, 1);
-      lcd.print("AVG temp");
-      lcd.println(vellemanAveragetemp);
-      Serial.print("3: CHEAP TEMP READING ");
-      Serial.print(" Velleman:");
-      Serial.print(vellemanAveragetemp);
-      Serial.print(" Cheap:");
-      Serial.println(averagetemp);
-      break;
-    case 4:
-        default:
-      // DISPLAY CREDITS
-      lcd.setCursor(0, 0);
-      lcd.println("BY KOEN MESTDAG!");
-      lcd.setCursor(0, 1);
-      lcd.print("Tcheap");
-      lcd.println(temperature);
-      Serial.println("4: CREDITS!!");
-      break;  
-    default:
+      lcdText = appendSpaces(String("t" + String(targetTemp, 1) + " angle " + angle), 16);
+      lcd.println(lcdText);
+      Serial.println("case 3");
+  } else if(lcdSwitch > 3){
       // DISPLAY CREDITS
       lcd.setCursor(0, 0);
       lcd.println("  KOEN MESTDAG  ");
       lcd.setCursor(0, 1);
       lcd.println("* * * * * * * * ");
-      Serial.println("5: CREDITS!!");
-      break;
+      Serial.println("case default");
   }
 
   // wait for x * 1000ms so that the lamps do not keep going on and off
@@ -379,3 +393,16 @@ float getCheapTempReading(int pin) {
   float temperature = (voltage - .5) * 100;
   return temperature;
 }
+
+/* Returns string of length len, by appending spaces to the right */
+String appendSpaces(String text, int len) {
+  String iText = text;
+  if(iText.length() > len) {
+    iText = iText.substring(1, 17);
+  }
+  while (iText.length() < len) {
+    iText.concat(" ");
+  };
+  return iText;
+}
+
