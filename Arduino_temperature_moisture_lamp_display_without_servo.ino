@@ -8,6 +8,9 @@
   - Velleman VMA311 (DHT11)                 // used for regulating breading temp & humidity
   - Relco VLM 99085 snoerdimmer             // used for diming IR light
   - Velleman 4 channel relay module VMA400  // IR light switch
+  - 1 servo motor                           // servo motor to tilt eggs
+  - 2 XXX capacitors                        // protect board from servo creating power dip
+  - 1 1J63 capacitor (0.1µF = 100nF)        // used to shield lcd from servo peak
 
   created 9 februari 2019
   by Koen Mestdag
@@ -46,11 +49,27 @@ LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 // Set up the temp & moisture for the Velleman component
 #include <dht.h>
 dht DHT; // load class to connect to Velleman
-#define DHT11_PIN 7 // set pin of temp reader
+#define DHT11_PIN 7 // set pin of temperature reader
+
+/*
+// set up servo
+#include <Servo.h>
+// servo object which represents the real thing
+Servo myServo;
+// angle switches
+const int leftAngle = 70;
+const int rightAngle = 125;
+// the current angle
+int angle = 120;
+// step by step rotation (local var)
+int pos;
+// time in milliseconds in which the servo is turned (for chickens: 8 hours = 8h * 60m * 60s * 1000ms = 28800000
+const long servoFrequency = 28800000; //15000;
+*/
 
 // variable to know when to tilt!
-long startTime = 0; // time sinds startup
-long elapsedTime = 0; // time sinds last turn
+long startTime; // last turn time
+long elapsedTime = 0; // time passed sinds last turn
 // pushbutton to manually control the turn
 const int servoButtonPin = 8;
 int buttonState = 0;         // variable for reading the pushbutton status
@@ -85,9 +104,12 @@ void setup() {
   // set up the number of columns and rows on the LCD
   lcd.begin(16, 2);
   // Print a message to the LCD.
-  displayMessage("STARTING", "EGG BREADING");
-  // display
-  delay(1000);
+  displayMessage("EGG BREADING", "MESTDAG");
+  for(int i = 0; i < 30; ++i) {
+    tone(piezoPin, (i * 100), 100);
+    // display delay & make some music :-0
+    delay(100);
+  }
 
   int i;
   temperature1 = getTemperature1Reading(DHT11_PIN);
@@ -104,8 +126,27 @@ void setup() {
   }
   averageTemperature2 = temperature2;
 
+/*
+  // setup servo: attach servo object to Arduino digital out 9
+  myServo.attach(9);
+  angle = myServo.read();
+  delay(500);
+  // SET THE SERVO STARTING ANGLE > otherwise the servo goes very fast to rightangle pos
+  if(angle < 90) {
+    Serial.print("Moving servo from ");
+    Serial.print(angle);
+    Serial.println(" to 180");
+    angle = turnUp(angle, rightAngle, 50);
+  } else {
+    Serial.print("Moving servo from ");
+    Serial.print(angle);
+    Serial.println(" to 60");
+    angle = turnDown(angle, leftAngle, 50);
+  }
+*/
+  
   // var to keep track of tilting
-  startTime = millis();
+  startTime = millis() - 300000; // make sure alarm can start immediately
   elapsedTime = 0;
   // initialize the pushbutton pin as an input:
   pinMode(servoButtonPin, INPUT);
@@ -157,23 +198,28 @@ void loop() {
     }
   } else {
     // meter malfunction!!
-    tone(piezoPin, 1000, 900); // arguments: stear piezopin, frequency 1000, ms to play)
+    tone(piezoPin, 1000, 900);        // arguments: piezopin, frequency 1000, ms to play)
     displayMessage("ALARM SENSOR!", String("T" + String(temperature1, 2)));
     Serial.println("ALARM: SENSOR MALFUNCTION!!");
     delay(1000);
   }
 
+  long startPlus5min = (startTime + 300000);
+  Serial.println(String("Starttime" + String(startTime) + " starttime " + String(startPlus5min)  + "  millis " +  String(millis())));
+
   /* Sound alarm when temperature drops! */
-  if(averageTemperature1 < (targetTemp - 3)) {
-    tone(piezoPin, 800, 500);
-    displayMessage(String("ALARM temp " + String(temperature1, 1)), String("Average T " + String(averageTemperature1, 2)));
-    Serial.println("ALARM: Temperature to low!!");
-    delay(2000);
-  } else if ((averageTemperature1 - averageTemperature2) > 40) {
-    tone(piezoPin, 800, 250);
-    displayMessage("ALARM DIFF!!", String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 2)));
-    Serial.println("ALARM: Temperature to low!!");
-    delay(2000);
+  if(startPlus5min < millis()) {      // if alarm not pauzed for 5' and has been minimum 5 mins sinds startup
+    if(averageTemperature1 <= (targetTemp - 2)) {
+      tone(piezoPin, 1000, 900);
+      displayMessage(String("ALARM temp " + String(temperature1, 1)), String("Average T " + String(averageTemperature1, 2)));
+      Serial.println("ALARM: Temperature to low!!");
+      delay(2000);
+    } else if ((averageTemperature1 - averageTemperature2) > 40) {
+      tone(piezoPin, 800, 250);
+      displayMessage("ALARM DIFF!!", String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 2)));
+      Serial.println("ALARM: Temperature to low!!");
+      delay(2000);
+    }
   }
 
   // second temp reading temperature varies to much: calculate average!
@@ -196,6 +242,8 @@ void loop() {
   Serial.print(temperature2);
   Serial.println("]");
 
+  // Turn the eggs when manual button is pressed. If it is, the buttonState is HIGH.
+  // OR turn the eggs every servoFrequency seconds (should be 8 hours)
   // -> read the state of the pushbutton value:
   buttonState = digitalRead(servoButtonPin);
   if(buttonState == HIGH) {
@@ -204,8 +252,25 @@ void loop() {
   // Calculate the time sinds last check
   elapsedTime = millis() - startTime;
   
+//  if((elapsedTime >= servoFrequency) || (buttonState == HIGH)) {
   if(buttonState == HIGH) {
-    startTime = millis();
+    startTime = millis();  // reset turn time
+
+/*    
+    if (angle == leftAngle) {
+      angle = turnUp(leftAngle, rightAngle, 150);
+    } else {
+      angle = turnDown(rightAngle, leftAngle, 150);
+    };
+    
+    // wait for right pos
+    delay(1000);
+    Serial.print("Eggs were turned to angle ");
+    Serial.print(angle);
+    Serial.print(" at ");
+    Serial.print((millis() / 1000));
+    Serial.println("s");
+*/    
     // i am having a problem with scrambled chars on my lcd screen: so reset every 8 hours :)
     lcd.begin(16, 2);
     displayMessage("BUTTON PUSHED", "RESET LCD");
@@ -228,7 +293,7 @@ void loop() {
   if (lcdSwitch == 0) {
       // DISPLAY TARGETTEMP & SERVO ANGLE
       // DISPLAY MEASURED TEMP & HUMIDITY
-      lcdText1 = String("T" + String(DHT.temperature) + " M" + String(DHT.humidity));
+      lcdText1 = String("T" + String(temperature1) + " M" + String(DHT.humidity));
       lcdText2 = String("Avg temp" + String(averageTemperature1, 1));
       Serial.println("case 0");
  } else if(lcdSwitch == 1) {
@@ -243,9 +308,14 @@ void loop() {
       Serial.println("case 1");
  } else if(lcdSwitch == 2) {
       // DISPLAY SERVO SETTINGS & LAST ROTATION
+/*      float freq = servoFrequency / 1000 / 60;
+      lcdText1 = appendSpaces(String("3.ServF(m)" + String(freq, 1)), 16);
+      float rot = (millis() - startTime);
+      rot = rot / 1000 / 60;
+      lcdText2 = appendSpaces(String("ServTurn(m)" + String(rot, 2)), 16);*/
       // DISPLAY TEMP SENSORS
-      lcdText1 = String("target:" + String(targetTemp, 1) + " act:");
-      lcdText2 = String("t1:" + String(temperature1, 1) + " t2:" + String(temperature2, 1));
+      lcdText1 = String("t1:" + String(temperature1, 1) + " t2:" + String(temperature2, 1));
+      lcdText2 = String("DHT:" + String(DHT.temperature, 1) + " act:");
       Serial.println("case 2");
  } else if(lcdSwitch == 3) {
       // DISPLAY AVG TEMP SENSORS
@@ -296,9 +366,9 @@ int turnDown(int high, int low, int delayTime) {
 
 /* Temperature sensor 1 reader */
 float getTemperature1Reading(int pin) {
-  int chk = DHT.read11(DHT11_PIN); // readout Temperature1 sensor
   // delay to give temp and humidity sensors time to read
   delay(1000);
+  int chk = DHT.read11(DHT11_PIN); // readout Temperature1 sensor  read21 has greater accuracy then .read11(DHT11_PIN)
   return DHT.temperature + temperature1Correction;
 }
 
