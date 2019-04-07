@@ -48,9 +48,8 @@ LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 dht DHT; // load class to connect to Velleman
 #define DHT11_PIN 7 // set pin of temperature reader
 
-// variable to know when to tilt!
+// time variables
 long startTime; // last turn time
-long elapsedTime = 0; // time passed sinds last turn
 // pushbutton to manually control the turn
 const int servoButtonPin = 8;
 int buttonState = 0;         // variable for reading the pushbutton status
@@ -108,8 +107,6 @@ void setup() {
   averageTemperature2 = temperature2;
 
   // var to keep track of tilting
-  startTime = millis() - 300000; // make sure alarm can start immediately
-  elapsedTime = 0;
   // initialize the pushbutton pin as an input:
   pinMode(servoButtonPin, INPUT);
 
@@ -123,7 +120,7 @@ void loop() {
 
   int i;
   temperature1 = getTemperature1Reading(DHT11_PIN);    // read current temp
-  if(temperature1 > 1) { // only when good reading: calculate moving temp and stear lamps
+  if(temperature1 > 5) { // only when good reading: calculate moving temp and stear lamps
     averageTemperature1 = 0;
     for (i = 24; i > 0; i--) {
       averageTemperature1 = averageTemperature1 + temperature1Readings[i];
@@ -168,15 +165,16 @@ void loop() {
 
   // second temp reading temperature to verify first
   temperature2 = getTemperature2Reading(sensorPin);    // read current temp
-  averageTemperature2 = 0;
-  for (i = 24; i > 0; i--) {
-    averageTemperature2 = averageTemperature2 + temperature2Readings[i];
-    temperature2Readings[i] = temperature2Readings[i - 1];
+  if(temperature2 > 5 && temperature2 < 45) {
+    averageTemperature2 = 0;
+    for (i = 24; i > 0; i--) {
+      averageTemperature2 = averageTemperature2 + temperature2Readings[i];
+      temperature2Readings[i] = temperature2Readings[i - 1];
+    }
+    temperature2Readings[0] = temperature2;
+    averageTemperature2 = averageTemperature2 + temperature2Readings[0];
+    averageTemperature2 = averageTemperature2 / 25;
   }
-  temperature2Readings[0] = temperature2;
-  averageTemperature2 = averageTemperature2 + temperature2Readings[0];
-  averageTemperature2 = averageTemperature2 / 25;
-
 
   long startPlus5min = (startTime + 300000);
   Serial.println(String("Starttime" + String(startTime) + " starttime " + String(startPlus5min)  + "  millis " +  String(millis())));
@@ -188,11 +186,11 @@ void loop() {
       displayMessage(String("ALARM temp " + String(temperature1, 1)), String("Average T " + String(averageTemperature1, 2)));
       Serial.println("ALARM: Temperature to low!!");
       delay(2000);
-    } else if (((averageTemperature1 - averageTemperature2) > 4) || ((averageTemperature1 - averageTemperature2) < -4)) {   // average t1 differs then 3 degrees from second sonde
-      tone(piezoPin, 800, 250);
-      displayMessage("ALARM DIFF!!", String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 2)));
-      Serial.println("ALARM: Temperature to low!!");
-      delay(2000);
+    } else if (((averageTemperature1 - averageTemperature2) > 5) || ((averageTemperature1 - averageTemperature2) < -5)) {   // average t1 differs then 3 degrees from second sonde
+      //tone(piezoPin, 800, 250);
+      //displayMessage("ALARM DIFF!!", String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 2)));
+      //Serial.println("ALARM: Temperature to low!!");
+      //delay(2000);
     }
   }
 
@@ -205,20 +203,18 @@ void loop() {
   Serial.print(temperature2);
   Serial.println("]");
 
+  // Turn the eggs when manual button is pressed. If it is, the buttonState is HIGH.
+  // OR turn the eggs every servoFrequency seconds (should be 8 hours)
   // -> read the state of the pushbutton value:
   buttonState = digitalRead(servoButtonPin);
-  if(buttonState == HIGH) {
-    Serial.println("BUTTON PRESSED!!");
-  }
-  // Calculate the time sinds last check
-  elapsedTime = millis() - startTime;
   
   if(buttonState == HIGH) {
-    startTime = millis();  // reset turn time
-    // i am having a problem with scrambled chars on my lcd screen: so reset every 8 hours :)
+    Serial.println("BUTTON PRESSED!!");
+    startTime = millis();  // pauze alarm
+    // i am having a problem with scrambled chars on my lcd screen: so reset when buttonpressed :)
     lcd.begin(16, 2);
-    displayMessage("BUTTON PUSHED", "RESET LCD");
-    delay(500);
+    displayMessage("BUTTON PUSHED", "RESETTING LCD");
+    delay(2000);
   }
 
   // read the value of the potentio switch to switch text on display
@@ -277,7 +273,8 @@ float getTemperature1Reading(int pin) {
   // delay to give temp and humidity sensors time to read
   delay(1000);
   int chk = DHT.read11(DHT11_PIN); // readout Temperature1 sensor  read21 has greater accuracy then .read11(DHT11_PIN)
-  return DHT.temperature + temperature1Correction;
+  int result = DHT.temperature + temperature1Correction;
+  return result;
 }
 
 /* Temperature sensor 2 reader */
@@ -291,10 +288,9 @@ float getTemperature2Reading(int pin) {
   // the sensor changes 10 mV per degree
   // the datasheet says there's a 500 mV offset
   // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
-//  float temperature = (voltage - .5) * 100;
   result = ((voltage - .5) * 100);
   result = result + temperature2Correction;
-  return result + temperature2Correction;
+  return result;
 }
 
 /* Returns string of length len, by appending spaces to the right */
