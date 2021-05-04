@@ -17,8 +17,6 @@
   This example code is part of the public domain.
 */
 
-// named constant for the pin the temperature sensor nr 2 is connected to
-const int sensorPin = A0;
 // lightbulbindex
 const int LIGHT_BULB_INDEX = 2;
 
@@ -26,27 +24,30 @@ const int LIGHT_BULB_INDEX = 2;
 // target room temperature in Celsius
 const float targetTemp = 37.0;
 
+// Temperature DHT 22
+#define DHTPIN22 10     // what pin we're connected to
+#define DHTTYPE DHT22   // DHT 22  (AM2302)
+DHT dht(DHTPIN22, DHTTYPE); // Initialize DHT sensor for normal 16mhz Arduino
+float h; // humidity
+
+// Analog temperature sensor
+// named constant for the pin the temperature sensor nr 2 is connected to
+const int sensorPin = A0;
+
 // main temperature (Velleman temp reader VMA311)
+// Fix the "floating" temperature reading
 float averageTemperature1; // instantiate average
-float temperature1Readings[25];
+float temperature1Readings[25]; // use average of 25 readings because there is to much fluctuation
 float temperature1;
-float temperature1Correction = -2.0;   // manually adjust digital meter
+float temperature1Correction = -0.0;   // manually adjust digital meter in relation to analog temp meter
 float moist1 = 0.0;
 
 // second temp measurement (standard Arduino)
 // Fix the "floating" temperature reading
 float averageTemperature2; // instantiate average
-float temperature2Readings[25]; // use average of 25 readings because there is to much fluctuation
+float temperature2Readings[25]; // use average of 25 readings because there is too much fluctuation
 float temperature2;
-float temperature2Correction = 2.0;   // manually adjust digital meter
-
-/* third temperature ()
-float averageTemperature3; // instantiate average
-float temperature3Readings[25];
-float temperature3;
-float temperature3Correction = 0.0;   // manually adjust digital meter
-float moist3 = 0.0;
-*/
+float temperature2Correction = 0.0;   // manually adjust digital meter
 
 // Set up the LCD
 // include the LCD code library:
@@ -54,14 +55,7 @@ float moist3 = 0.0;
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(12, 11, 6, 5, 4, 3);
 
-// Set up the temp & moisture for the Velleman component
-#include <DHT.h>
-//DHT DHT1; // load class to connect to Velleman
-#define DHT11_PIN 7 // set pin of temperature reader1
-#define DHTTYPE DHT11   // DHT 22  (AM2302)
 
-#define DHT22_PIN 10 // set pin of temperature reader2
-DHT DHT1(DHT11_PIN, DHTTYPE); // load class to connect to Velleman
 
 // time variables
 long startTime; // last turn time
@@ -84,6 +78,7 @@ int const potPin = A1;
 int potVal;
 // display rotator
 int lcdSwitch = 0;
+
 
 void setup() {
   // open a serial connection to display values on computer
@@ -108,26 +103,19 @@ void setup() {
 
   int i;
   // initialize averageTemperature1
-  temperature1 = getTemperature1Reading(DHT11_PIN);
+  temperature1 = measureTempDH22();
   for (i = 0; i < 25; i++) {
     temperature1Readings[i] = temperature1;
   }
   averageTemperature1 = temperature1;
 
-  // initialize second temp reading
-  temperature2 = getTemperature2Reading(sensorPin);
+  // initialize averageTemperature2
+  temperature2 = getAnalogTemperatureReading(sensorPin);
   for (i = 0; i < 25; i++) {
     temperature2Readings[i] = temperature2;
   }
   averageTemperature2 = temperature2;
 
-  /* initialize averageTemperature3
-  temperature3 = getTemperature1Reading(DHT22_PIN);
-  for (i = 0; i < 25; i++) {
-    temperature3Readings[i] = temperature3;
-  }
-  averageTemperature3 = temperature3;
-*/
 
   // var to keep track of tilting
   // initialize the pushbutton pin as an input:
@@ -142,8 +130,8 @@ void setup() {
 void loop() {  
 
   int i;
-  temperature1 = getTemperature1Reading(DHT11_PIN);    // read current temp
-  moist1 = DHT1.readHumidity();
+  temperature1 = measureTempDH22();    // read current temp
+  moist1 = dht.readHumidity();
   if(temperature1 > 5) { // only when good reading: calculate moving temp and stear lamps
     averageTemperature1 = calculateAverage(temperature1Readings, 25, temperature1);
     Serial.println(String("Velleman temperature:" + String(temperature1, 1) + " AVG:" + String(averageTemperature1, 1) + " Humidity = " + String(moist1, 1)));
@@ -175,34 +163,16 @@ void loop() {
   } else {
     // meter malfunction!!
     tone(piezoPin, 1000, 900);        // arguments: piezopin, frequency 1000, ms to play)
-    // KOEN displayMessage("ALARM SENSOR!", String("T" + String(temperature1, 2)));
+    displayMessage("ALARM SENSOR!", String("T" + String(temperature1, 2)));
     Serial.println("ALARM: SENSOR 1 MALFUNCTION!!");
     delay(1000);
   }
 
   // second temp reading temperature to verify first
-  temperature2 = getTemperature2Reading(sensorPin);    // read current temp
-  if(temperature2 > 5 && temperature2 < 45) {
-    averageTemperature2 = 0;
-    for (i = 24; i > 0; i--) {
-      averageTemperature2 = averageTemperature2 + temperature2Readings[i];
-      temperature2Readings[i] = temperature2Readings[i - 1];
-    }
-    temperature2Readings[0] = temperature2;
-    averageTemperature2 = averageTemperature2 + temperature2Readings[0];
-    averageTemperature2 = averageTemperature2 / 25;
-  }
-
-/*
-  // third temp reading
-  temperature3 = getTemperature22Reading(DHT22_PIN);    // read current temp
-  moist3 = DHT1.humidity;
-  if(temperature3 > 5) { // only when good reading: calculate moving temp and stear lamps
-    averageTemperature3 = calculateAverage(temperature3Readings, 25, temperature3);
-  } else {
-    Serial.println("ALARM SENSOR 3");
-  }
-*/
+  temperature2 = getAnalogTemperatureReading(sensorPin);    // read current temp
+  averageTemperature2 = calculateAverage(temperature2Readings, 25, temperature2);
+  Serial.println("SECOND!!!:");
+  Serial.println(averageTemperature2);  
 
   long startPlus5min = (startTime + 300000);
   Serial.println(String("Starttime" + String(startTime) + " starttime " + String(startPlus5min)  + "  millis " +  String(millis())));
@@ -214,22 +184,8 @@ void loop() {
       displayMessage(String("ALARM temp " + String(temperature1, 1)), String("Average T " + String(averageTemperature1, 2)));
       Serial.println("ALARM: Temperature to low!!");
       delay(2000);
-    } else if (((averageTemperature1 - averageTemperature2) > 5) || ((averageTemperature1 - averageTemperature2) < -5)) {   // average t1 differs then 3 degrees from second sonde
-      //tone(piezoPin, 800, 250);
-      //displayMessage("ALARM DIFF!!", String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 2)));
-      //Serial.println("ALARM: Temperature to low!!");
-      //delay(2000);
     }
   }
-
-  Serial.print("T2: AVG[");
-  Serial.print(averageTemperature2);
-  Serial.print("]");
-  Serial.print("Target[");
-  Serial.print(targetTemp);
-  Serial.print("] Actual [");
-  Serial.print(temperature2);
-  Serial.println("]");
 
   // Turn the eggs when manual button is pressed. If it is, the buttonState is HIGH.
   // OR turn the eggs every servoFrequency seconds (should be 8 hours)
@@ -276,13 +232,13 @@ void loop() {
       Serial.println("case 1");
  } else if(lcdSwitch == 2) {
       // DISPLAY TEMP SENSORS
-      lcdText1 = String("t1:" + String(temperature1, 1) + " t2:" + String(temperature2, 1));
-      lcdText2 = String("DHT1:" + String(DHT1.readTemperature(), 0) + " avg:" + String(averageTemperature1, 1));
+      lcdText1 = String("t1:" + String(temperature1, 1));
+      lcdText2 = String("DHT1:" + String(dht.readTemperature(), 0) + " avg:" + String(averageTemperature1, 1));
       Serial.println("case 2");
  } else if(lcdSwitch == 3) {
       // DISPLAY AVG TEMP SENSORS
       lcdText1 = String("Average");
-      lcdText2 = String("t1:" + String(averageTemperature1, 1) + " t2:" + String(averageTemperature2, 1));
+      lcdText2 = String("t1:" + String(averageTemperature1, 1));
       Serial.println("case 3");
   } else {
       // DISPLAY CREDITS
@@ -296,17 +252,33 @@ void loop() {
   delay(100);
 }
 
-/* Temperature sensor 1 reader */
-float getTemperature1Reading(int pin) {
-  // delay to give temp and humidity sensors time to read
-  delay(1000);
-//  int chk = DHT1.readTemperature(); // readout Temperature1 sensor  read21 has greater accuracy then .read11(DHT11_PIN)
-  int result = DHT1.readTemperature() + temperature1Correction;
-  return result;
+float measureTempDH22() {
+  // Reading temperature or humidity takes about 250 milliseconds!
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  h = dht.readHumidity();
+  // Read temperature as Celsius
+  float t = dht.readTemperature();
+  // Read temperature as Fahrenheit
+  float f = dht.readTemperature(true);
+  
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return -1.0;
+  }
+
+  Serial.print("Humidity: "); 
+  Serial.print(h);
+  Serial.print(" %\t");
+  Serial.print("Temperature: "); 
+  Serial.print(t);
+  Serial.println(" *C ");
+
+  return t;
 }
 
 /* Temperature sensor 2 reader */
-float getTemperature2Reading(int pin) {
+float getAnalogTemperatureReading(int pin) {
   float result;
   // read the value on AnalogIn pin 0 (temp sensor) and store it in a variable
   int sensorVal = analogRead(pin);
@@ -318,18 +290,13 @@ float getTemperature2Reading(int pin) {
   // => ((voltage - 500 mV*1V/1000mV) times 1000mV/1V/10mV)
   result = ((voltage - .5) * 100);
   result = result + temperature2Correction;
+
+  Serial.print("Temperature sensor 2");
+  Serial.println(result);
+  
   return result;
 }
 
-/* Temperature sensor 3 reader 
-float getTemperature22Reading(int pin) {
-  // delay to give temp and humidity sensors time to read
-  delay(1000);
-  int chk = DHT1.read21(pin); // readout Temperature1 sensor  read21 has greater accuracy then .read11(DHT11_PIN)
-  int result = DHT1.temperature + temperature3Correction;
-  return result;
-}
-*/
 
 /* Returns string of length len, by appending spaces to the right */
 String appendSpaces(String text, int len) {
